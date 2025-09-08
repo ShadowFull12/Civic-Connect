@@ -128,18 +128,31 @@ export default function ReportForm() {
     );
   };
   
+  const getCurrentPosition = (): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      if (!('geolocation' in navigator)) {
+        return reject(new Error('Geolocation not supported'));
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+  };
+
   const getCoordsFromAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
     try {
-        const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}`);
-        if (!response.ok) throw new Error('Failed to geocode address');
-        const data = await response.json();
-        if (data.features && data.features.length > 0) {
-            const [lng, lat] = data.features[0].center;
-            return { lat, lng };
-        }
-        return null;
+      const position = await getCurrentPosition();
+      const { latitude, longitude } = position.coords;
+      const proximity = `${longitude},${latitude}`;
+      const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}&proximity=${proximity}`);
+      if (!response.ok) throw new Error('Failed to geocode address');
+      const data = await response.json();
+      if (data.features && data.features.length > 0) {
+          const [lng, lat] = data.features[0].center;
+          return { lat, lng };
+      }
+      return null;
     } catch (error) {
         console.error("Geocoding failed:", error);
+        toast({ title: 'Geocoding Error', description: 'Could not find location. Try to be more specific or check location permissions.', variant: 'destructive' });
         return null;
     }
   };
@@ -185,7 +198,6 @@ export default function ReportForm() {
       toast({ title: 'Processing...', description: 'Looking up location coordinates.' });
       const locationCoords = await getCoordsFromAddress(values.location);
       if (!locationCoords) {
-          toast({ title: 'Location Error', description: 'Could not find coordinates for the address. Please try a different address.', variant: 'destructive' });
           throw new Error("Geocoding failed");
       }
 
@@ -234,12 +246,10 @@ export default function ReportForm() {
     } catch (error) {
       console.error("Submission Failed:", error);
       // The specific error toast is shown in the function that throws it
-      // This is a general fallback for unexpected issues.
-      if (error instanceof Error && error.message !== "Geocoding failed" && error.message !== "Photo upload failed") {
-          toast({ title: 'Submission Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
+      if (!(error instanceof Error && (error.message === "Geocoding failed" || error.message === "Photo upload failed"))) {
+           toast({ title: 'Submission Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
       }
     } finally {
-      // THIS IS CRUCIAL: Always reset the submitting state
       setIsSubmitting(false);
     }
   };
@@ -316,7 +326,7 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field: { onChange, onBlur, name, ref } }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
@@ -324,10 +334,7 @@ export default function ReportForm() {
                     type="file"
                     accept="image/*"
                     disabled={isSubmitting || !isReadyToSubmit}
-                    onChange={(e) => onChange(e.target.files)}
-                    onBlur={onBlur}
-                    name={name}
-                    ref={ref}
+                    onChange={(e) => field.onChange(e.target.files)}
                   />
               </FormControl>
               <FormMessage />
