@@ -23,7 +23,7 @@ const issueSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   location: z.string().min(5, 'Please enter a location or address.'),
-  photo: z.any().refine(file => file?.length == 1, 'A photo is required.'),
+  photo: z.any().refine(files => files?.length === 1, 'A photo is required.'),
 });
 
 const issueCategories = [
@@ -58,8 +58,6 @@ export default function ReportForm() {
     },
   });
   
-  const fileRef = form.register('photo');
-
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -318,20 +316,20 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field }) => {
-            // We are deconstructing the field object to remove the 'value' prop
-            // because file inputs in React should be uncontrolled components.
-            const { value, ...rest } = field;
-            return (
-              <FormItem>
-                <FormLabel>Photo</FormLabel>
-                <FormControl>
-                  <Input type="file" accept="image/*" disabled={isSubmitting || !isReadyToSubmit} {...rest} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Photo</FormLabel>
+              <FormControl>
+                 <Input
+                    type="file"
+                    accept="image/*"
+                    disabled={isSubmitting || !isReadyToSubmit}
+                    onChange={(e) => field.onChange(e.target.files)}
+                  />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
         <Button type="submit" disabled={!isReadyToSubmit || isSubmitting} className="w-full">
