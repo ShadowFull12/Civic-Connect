@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -60,6 +61,11 @@ export default function ReportForm() {
     defaultValues: {
       category: '',
       description: '',
+      location: {
+        lat: 0,
+        lng: 0,
+        address: ''
+      },
       photo: undefined,
     },
   });
@@ -225,7 +231,7 @@ export default function ReportForm() {
   };
   
   const isReadyToSubmit = !!user && !!userProfile;
-  const locationAddress = form.watch('location.address');
+  const photoRef = form.register("photo");
 
   return (
     <Form {...form}>
@@ -286,7 +292,7 @@ export default function ReportForm() {
                     <Input 
                       placeholder="Click the pin to get your current location" 
                       {...field} 
-                      readOnly 
+                       
                       disabled={isSubmitting || isFetchingLocation || !isReadyToSubmit} 
                     />
                   </FormControl>
@@ -302,16 +308,15 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field: { onChange, ...fieldProps } }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
                  <Input
-                    {...fieldProps}
+                    {...photoRef}
                     type="file"
                     accept="image/*"
                     disabled={isSubmitting || !isReadyToSubmit}
-                    onChange={(e) => onChange(e.target.files)}
                   />
               </FormControl>
               <FormMessage />
@@ -338,3 +343,5 @@ export default function ReportForm() {
     </Form>
   );
 }
+
+    
