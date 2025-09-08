@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, FileText, Map, LogOut, User as UserIcon } from "lucide-react";
 import {
   DropdownMenu,
@@ -16,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "./ui/button";
 
 interface BottomNavProps {
     user: User;
@@ -25,6 +25,7 @@ interface BottomNavProps {
 export default function BottomNav({ user }: BottomNavProps) {
   const pathname = usePathname();
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -40,6 +41,8 @@ export default function BottomNav({ user }: BottomNavProps) {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const displayName = userProfile?.name || user.displayName || user.email;
+
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/report", label: "Report", icon: FileText },
@@ -53,8 +56,8 @@ export default function BottomNav({ user }: BottomNavProps) {
             const isActive = pathname === item.href;
             return (
                  <Link key={item.href} href={item.href} className={`inline-flex flex-col items-center justify-center px-5 hover:bg-muted group ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                    <item.icon className="w-5 h-5 mb-1" />
-                    <span className="text-xs">{item.label}</span>
+                    <item.icon className="w-6 h-6" />
+                    <span className="sr-only">{item.label}</span>
                 </Link>
             )
         })}
@@ -62,19 +65,22 @@ export default function BottomNav({ user }: BottomNavProps) {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                  <button type="button" className="inline-flex flex-col items-center justify-center px-5 hover:bg-muted group text-muted-foreground">
-                    <UserIcon className="w-5 h-5 mb-1" />
-                    <span className="text-xs">Profile</span>
+                    <Avatar className="h-7 w-7">
+                        <AvatarImage src={user.photoURL ?? ''} alt={displayName ?? 'User'} />
+                        <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                    </Avatar>
+                    <span className="sr-only">Profile</span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="end" className="w-56 mb-2">
                  <DropdownMenuLabel>
                     <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
-                            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                            <AvatarImage src={user.photoURL ?? ''} alt={displayName ?? 'User'} />
+                            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                         </Avatar>
                         <div className="truncate text-left text-sm">
-                            <div className="font-medium truncate">{user.displayName || user.email}</div>
+                            <div className="font-medium truncate">{displayName}</div>
                             <div className="text-xs text-muted-foreground truncate">{user.email}</div>
                         </div>
                     </div>

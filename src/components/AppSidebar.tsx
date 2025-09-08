@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Sidebar,
@@ -37,6 +38,7 @@ interface AppSidebarProps {
 export default function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -51,6 +53,8 @@ export default function AppSidebar({ user }: AppSidebarProps) {
     if (!name) return "U";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
+
+  const displayName = userProfile?.name || user.displayName || user.email;
 
   return (
     <Sidebar>
@@ -94,11 +98,11 @@ export default function AppSidebar({ user }: AppSidebarProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex h-auto w-full items-center justify-start gap-2 p-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
-                <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                <AvatarImage src={user.photoURL ?? ''} alt={displayName ?? 'User'} />
+                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
               </Avatar>
               <div className="truncate text-left text-sm">
-                <div className="font-medium truncate">{user.displayName || user.email}</div>
+                <div className="font-medium truncate">{displayName}</div>
                 <div className="text-xs text-muted-foreground truncate">{user.email}</div>
               </div>
             </Button>
