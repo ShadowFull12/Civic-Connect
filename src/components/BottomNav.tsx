@@ -7,7 +7,7 @@ import { signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, FileText, Map, LogOut, User as UserIcon } from "lucide-react";
+import { LayoutDashboard, FileText, Map, LogOut, User as UserIcon, FilePenLine } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,13 +45,14 @@ export default function BottomNav({ user }: BottomNavProps) {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/report", label: "Report", icon: FileText },
-    { href: "/dashboard/my-reports", label: "My Reports", icon: Map },
+    { href: "/dashboard/map", label: "Map", icon: Map },
+    { href: "/dashboard/report", label: "Report", icon: FilePenLine },
+    { href: "/dashboard/my-reports", label: "My Reports", icon: FileText },
   ];
 
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-background border-t border-border">
-      <div className="grid h-full max-w-lg grid-cols-4 mx-auto font-medium">
+      <div className="grid h-full max-w-lg grid-cols-5 mx-auto font-medium">
         {navItems.map(item => {
             const isActive = pathname === item.href;
             return (

@@ -20,7 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/icons";
-import { LayoutDashboard, FileText, Map, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, Map, LogOut, FilePenLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -74,10 +74,18 @@ export default function AppSidebar({ user }: AppSidebarProps) {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/dashboard/map'} tooltip={{children: 'Community Map'}}>
+              <Link href="/dashboard/map">
+                <Map />
+                <span>Community Map</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/dashboard/report'} tooltip={{children: 'Report Issue'}}>
               <Link href="/dashboard/report">
-                <FileText />
+                <FilePenLine />
                 <span>Report an Issue</span>
               </Link>
             </SidebarMenuButton>
@@ -85,7 +93,7 @@ export default function AppSidebar({ user }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/dashboard/my-reports'} tooltip={{children: 'My Reports'}}>
               <Link href="/dashboard/my-reports">
-                <Map />
+                <FileText />
                 <span>My Reports</span>
               </Link>
             </SidebarMenuButton>
