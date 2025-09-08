@@ -270,7 +270,7 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field: { onChange, ...fieldProps } }) => (
+          render={({ field: { onChange, value, ...fieldProps } }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
