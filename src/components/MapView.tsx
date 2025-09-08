@@ -268,12 +268,12 @@ export default function MapView({ apiKey }: MapViewProps) {
                 className="font-body z-20"
                 >
                 <div 
-                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-bottom transition-transform duration-300 w-64"
+                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-bottom transition-transform duration-300 w-60"
                   style={{ transform: `scale(${Math.max(0.5, Math.min(1, zoom / 12))})`}}
                 >
                     <Dialog>
                        <DialogTrigger asChild>
-                           <div className="relative w-full h-32 cursor-pointer group">
+                           <div className="relative w-full h-28 cursor-pointer group">
                                 <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Maximize className="h-8 w-8 text-white" />
@@ -286,9 +286,9 @@ export default function MapView({ apiKey }: MapViewProps) {
                            </div>
                         </DialogContent>
                     </Dialog>
-                    <div className="p-3">
+                    <div className="p-2.5">
                         <h3 className="font-bold font-headline text-lg mb-1" style={{color: categoryColors[selectedIssue.category]}}>{selectedIssue.category}</h3>
-                        <p className="text-sm mb-2 text-muted-foreground">{selectedIssue.description}</p>
+                        <p className="text-sm mb-2 text-muted-foreground line-clamp-2">{selectedIssue.description}</p>
                         <div className="text-xs text-muted-foreground/80 mb-3 space-y-0.5">
                             <p>Reported by: <span className="font-semibold">{selectedIssue.userName}</span></p>
                             <p title={format(selectedIssue.createdAt.toDate(), 'PPP p')}>
@@ -316,3 +316,5 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
+
+    
