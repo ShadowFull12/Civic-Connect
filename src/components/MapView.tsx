@@ -56,6 +56,12 @@ export default function MapView({ apiKey }: MapViewProps) {
 
     return () => unsubscribe();
   }, []);
+  
+  const formatDate = (timestamp: Timestamp | Date): string => {
+    if (!timestamp) return "Date not available";
+    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
+    return format(date, 'PPP p');
+  };
 
   const getStatusColor = (status: Issue['status']) => {
     switch (status) {
@@ -67,11 +73,6 @@ export default function MapView({ apiKey }: MapViewProps) {
     }
   };
   
-  const formatDate = (timestamp: Timestamp | Date): string => {
-    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
-    return format(date, 'PPP p');
-  };
-
   return (
     <Map
       {...viewState}
@@ -91,7 +92,7 @@ export default function MapView({ apiKey }: MapViewProps) {
             setSelectedIssue(issue);
           }}
         >
-          <Pin className={`h-8 w-8 cursor-pointer ${getStatusColor(issue.status)}`} fill="currentColor" />
+          <Pin className={`h-10 w-10 cursor-pointer ${getStatusColor(issue.status)}`} fill="currentColor" />
         </Marker>
       ))}
 
@@ -102,6 +103,7 @@ export default function MapView({ apiKey }: MapViewProps) {
           onClose={() => setSelectedIssue(null)}
           closeOnClick={false}
           anchor="left"
+          offset={20}
         >
           <div className="w-64 p-2 font-body">
             <h3 className="font-bold font-headline text-lg mb-2">{selectedIssue.category}</h3>
