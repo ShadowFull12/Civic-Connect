@@ -13,7 +13,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import useSupercluster from 'use-supercluster';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from './ui/button';
 
 interface MapViewProps {
@@ -81,15 +81,12 @@ export default function MapView({ apiKey }: MapViewProps) {
             switch(error.code) {
               case error.PERMISSION_DENIED:
                 errorMessage = "Location access denied. Please enable it in your browser settings.";
-                console.error("User denied Geolocation.");
                 break;
               case error.POSITION_UNAVAILABLE:
                 errorMessage = "Location information is unavailable.";
-                console.error("Location information is unavailable.");
                 break;
               case error.TIMEOUT:
                 errorMessage = "The request to get user location timed out.";
-                console.error("The request to get user location timed out.");
                 break;
               default:
                  console.error("An unknown error occurred while getting location:", error);
@@ -282,6 +279,10 @@ export default function MapView({ apiKey }: MapViewProps) {
                             </div>
                         </DialogTrigger>
                         <DialogContent className="p-0 border-0 max-w-4xl h-full md:h-auto md:max-h-[90vh] bg-transparent">
+                           <DialogHeader>
+                               <DialogTitle className="sr-only">Issue Image: {selectedIssue.category}</DialogTitle>
+                               <DialogDescription className="sr-only">{selectedIssue.description}</DialogDescription>
+                           </DialogHeader>
                            <div className="relative w-full h-full">
                                 <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-contain"/>
                            </div>
@@ -317,3 +318,5 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
+
+    
