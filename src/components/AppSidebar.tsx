@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -97,7 +98,7 @@ export default function AppSidebar({ user }: AppSidebarProps) {
                 <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
               </Avatar>
               <div className="truncate text-left text-sm">
-                <div className="font-medium truncate">{user.displayName || 'User'}</div>
+                <div className="font-medium truncate">{user.displayName || user.email}</div>
                 <div className="text-xs text-muted-foreground truncate">{user.email}</div>
               </div>
             </Button>
