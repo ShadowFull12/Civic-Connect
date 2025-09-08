@@ -36,6 +36,8 @@ const issueCategories = [
   'Other'
 ];
 
+const MAPTILER_API_KEY = 'lzZb3ygVJBpZSlkEQ2fv';
+
 export default function ReportForm() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
@@ -95,13 +97,23 @@ export default function ReportForm() {
     if ('geolocation' in navigator) {
       setIsFetchingLocation(true);
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // In a real app, you would use a geocoding service here to convert lat/lng to an address.
-          // For this prototype, we will just use the coordinates.
-          const locationString = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
-          form.setValue('location', `Near ${locationString}`);
-          setIsFetchingLocation(false);
-          toast({ title: 'Location Filled', description: 'Your approximate location has been filled.' });
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
+            const data = await response.json();
+            if (data.features && data.features.length > 0) {
+              form.setValue('location', data.features[0].place_name);
+              toast({ title: 'Location Filled', description: 'Your address has been auto-filled.' });
+            } else {
+              throw new Error('No address found for coordinates.');
+            }
+          } catch (error) {
+            console.error(error);
+            toast({ title: 'Location Error', description: 'Could not fetch address. Please enter it manually.', variant: 'destructive' });
+          } finally {
+            setIsFetchingLocation(false);
+          }
         },
         () => {
           setIsFetchingLocation(false);
@@ -110,6 +122,22 @@ export default function ReportForm() {
       );
     } else {
       toast({ title: 'Not Supported', description: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+    }
+  };
+  
+  const getCoordsFromAddress = async (address: string): Promise<{ lat: number; lng: number }> => {
+    try {
+        const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}`);
+        const data = await response.json();
+        if (data.features && data.features.length > 0) {
+            const [lng, lat] = data.features[0].center;
+            return { lat, lng };
+        }
+        throw new Error('Could not find coordinates for the address.');
+    } catch (error) {
+        console.error("Geocoding failed:", error);
+        toast({ title: 'Geocoding Error', description: 'Could not find coordinates for the address. Defaulting to (0,0).', variant: 'destructive' });
+        return { lat: 0, lng: 0 };
     }
   };
 
@@ -127,8 +155,7 @@ export default function ReportForm() {
       await uploadBytes(storageRef, photoFile);
       const photoUrl = await getDownloadURL(storageRef);
       
-      // We will use placeholder lat/lng. A real app should geocode the address.
-      const placeholderLocation = { lat: 0, lng: 0 };
+      const locationCoords = await getCoordsFromAddress(values.location);
 
       const newIssue = {
         userId: user.uid,
@@ -136,27 +163,32 @@ export default function ReportForm() {
         category: values.category,
         description: values.description,
         photoUrl,
-        location: { ...placeholderLocation, address: values.location },
+        location: { ...locationCoords, address: values.location },
         status: 'pending' as const,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'issues'), newIssue);
+      const docRef = await addDoc(collection(db, 'issues'), newIssue);
+      
+      toast({ title: 'Success!', description: 'Your issue has been reported.' });
       
       autoRouteIssueToDepartment({
         category: newIssue.category,
         description: newIssue.description,
-        location: { ...placeholderLocation, address: values.location }
+        location: newIssue.location
+      }).then(async (routingResponse) => {
+        // This runs in the background and does not block submission
+        // In a real app, you might want to update the issue document with the routing info
+        console.log("AI Routing successful:", routingResponse);
       }).catch(aiError => {
         console.error("AI routing failed:", aiError);
       });
 
-      toast({ title: 'Success!', description: 'Your issue has been reported.' });
       router.push('/dashboard/my-reports');
     } catch (error) {
       console.error(error);
-      toast({ title: 'Submission Failed', description: 'There was an error reporting your issue.', variant: 'destructive' });
+      toast({ title: 'Submission Failed', description: 'There was an error reporting your issue. Please try again.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }

@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
 import type { Issue } from '@/lib/types';
 import { Pin, AlertCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface MapViewProps {
   apiKey: string;
@@ -44,7 +45,11 @@ export default function MapView({ apiKey }: MapViewProps) {
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const issuesData: Issue[] = [];
       querySnapshot.forEach((doc) => {
-        issuesData.push({ id: doc.id, ...doc.data() } as Issue);
+        const data = doc.data();
+        // Ensure location and createdAt are valid before pushing
+        if (data.location && data.location.lat != null && data.location.lng != null && data.createdAt) {
+          issuesData.push({ id: doc.id, ...data } as Issue);
+        }
       });
       setIssues(issuesData);
     });
@@ -60,6 +65,11 @@ export default function MapView({ apiKey }: MapViewProps) {
       case 'resolved': return 'text-green-500';
       default: return 'text-gray-500';
     }
+  };
+  
+  const formatDate = (timestamp: Timestamp | Date): string => {
+    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
+    return format(date, 'PPP p');
   };
 
   return (
@@ -96,13 +106,14 @@ export default function MapView({ apiKey }: MapViewProps) {
           <div className="w-64 p-2 font-body">
             <h3 className="font-bold font-headline text-lg mb-2">{selectedIssue.category}</h3>
             {selectedIssue.photoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={selectedIssue.photoUrl} alt={selectedIssue.category} className="mb-2 rounded-md w-full h-32 object-cover" />
+                <div className="relative w-full h-32 mb-2 rounded-md overflow-hidden">
+                    <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
+                </div>
             )}
             <p className="text-sm mb-2">{selectedIssue.description}</p>
             <div className="text-xs text-muted-foreground mb-2">
               <p>Reported by: {selectedIssue.userName}</p>
-              <p>{format(selectedIssue.createdAt.toDate(), 'PPP p')}</p>
+              <p>{formatDate(selectedIssue.createdAt)}</p>
             </div>
             <Badge 
               variant={selectedIssue.status === 'resolved' ? 'default' : selectedIssue.status === 'pending' ? 'destructive' : 'secondary'}
