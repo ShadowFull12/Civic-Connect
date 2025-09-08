@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db, storage } from '@/lib/firebase';
@@ -41,7 +41,6 @@ export default function ReportForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -57,7 +56,6 @@ export default function ReportForm() {
   });
 
   useEffect(() => {
-    // We are on the client side, so we can safely access navigator
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -68,14 +66,13 @@ export default function ReportForm() {
           setLocationError(null);
         },
         () => {
-          setLocationError('Could not get your location. Please enable location services in your browser settings.');
+          setLocationError('Could not get your location. Please enable location services.');
         }
       );
     } else {
       setLocationError('Geolocation is not supported by your browser.');
     }
 
-    // Speech Recognition setup
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
@@ -102,7 +99,6 @@ export default function ReportForm() {
     if (recognitionRef.current) {
       if (isListening) {
         recognitionRef.current.stop();
-        setIsListening(false);
       } else {
         recognitionRef.current.start();
         setIsListening(true);
@@ -113,25 +109,17 @@ export default function ReportForm() {
   };
 
   const onSubmit = async (values: z.infer<typeof issueSchema>) => {
-    // The dashboard layout already protects this page, so user is guaranteed to be logged in.
-    // We also disable the submit button until location and user profile are ready.
     if (!user || !userProfile || !location) {
-      toast({ title: 'Error', description: 'User information or location is not available yet. Please wait a moment and try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'User or location data is missing.', variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
-    setUploadProgress(0);
 
     try {
       const photoFile = values.photo[0];
       const storageRef = ref(storage, `issues/${user.uid}/${Date.now()}_${photoFile.name}`);
       
-      // Upload Task with progress
-      const uploadTask = uploadBytes(storageRef, photoFile);
-      // For simplicity, we are not showing granular progress, just the loading state.
-      // If you need to show progress, you can use `uploadTask.on('state_changed', ...)`
-      await uploadTask;
-
+      await uploadBytes(storageRef, photoFile);
       const photoUrl = await getDownloadURL(storageRef);
 
       const newIssue = {
@@ -148,7 +136,6 @@ export default function ReportForm() {
 
       await addDoc(collection(db, 'issues'), newIssue);
       
-      // Auto-route with GenAI (non-blocking)
       autoRouteIssueToDepartment({
         category: newIssue.category,
         description: newIssue.description,
@@ -164,11 +151,10 @@ export default function ReportForm() {
       toast({ title: 'Submission Failed', description: 'There was an error reporting your issue.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
-      setUploadProgress(null);
     }
   };
   
-  const isReady = !!user && !!userProfile && !!location;
+  const isReadyToSubmit = !!user && !!userProfile && !!location;
 
   return (
     <Form {...form}>
@@ -247,17 +233,10 @@ export default function ReportForm() {
             </div>
         )}
 
-        {uploadProgress !== null && (
-          <div className="space-y-2">
-            <Label>Uploading...</Label>
-            <Progress value={uploadProgress} />
-          </div>
-        )}
-
-        <Button type="submit" disabled={!isReady || isSubmitting} className="w-full">
+        <Button type="submit" disabled={!isReadyToSubmit || isSubmitting} className="w-full">
           {isSubmitting ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-          ) : !isReady ? (
+          ) : !isReadyToSubmit ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Waiting for location...</>
           ) : (
             'Submit Report'
