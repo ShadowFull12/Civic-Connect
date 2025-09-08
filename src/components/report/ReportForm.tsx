@@ -316,7 +316,7 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field }) => (
+          render={({ field: { onChange, onBlur, name, ref } }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
@@ -324,7 +324,10 @@ export default function ReportForm() {
                     type="file"
                     accept="image/*"
                     disabled={isSubmitting || !isReadyToSubmit}
-                    onChange={(e) => field.onChange(e.target.files)}
+                    onChange={(e) => onChange(e.target.files)}
+                    onBlur={onBlur}
+                    name={name}
+                    ref={ref}
                   />
               </FormControl>
               <FormMessage />
