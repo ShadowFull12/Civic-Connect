@@ -24,7 +24,7 @@ const issueSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   location: z.string().min(5, 'Please enter a location or address.'),
-  photo: z.any().refine(file => file?.length == 1, 'Photo is required.'),
+  photo: z.any().refine(file => file?.length == 1, 'A photo is required.'),
 });
 
 const issueCategories = [
@@ -56,6 +56,8 @@ export default function ReportForm() {
       photo: undefined,
     },
   });
+  
+  const fileRef = form.register('photo');
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -94,39 +96,40 @@ export default function ReportForm() {
   };
   
   const handleAutoFillLocation = () => {
-    if ('geolocation' in navigator) {
-      setIsFetchingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
-            if (!response.ok) throw new Error('Failed to fetch address');
-            const data = await response.json();
-            if (data.features && data.features.length > 0) {
-              form.setValue('location', data.features[0].place_name, { shouldValidate: true });
-              toast({ title: 'Location Filled', description: 'Your address has been auto-filled.' });
-            } else {
-              throw new Error('No address found for coordinates.');
-            }
-          } catch (error) {
-            console.error(error);
-            toast({ title: 'Location Error', description: 'Could not fetch address. Please enter it manually.', variant: 'destructive' });
-          } finally {
-            setIsFetchingLocation(false);
-          }
-        },
-        () => {
-          setIsFetchingLocation(false);
-          toast({ title: 'Location Error', description: 'Could not get your location. Please enable location services or enter it manually.', variant: 'destructive' });
-        }
-      );
-    } else {
+    if (!('geolocation' in navigator)) {
       toast({ title: 'Not Supported', description: 'Geolocation is not supported by your browser.', variant: 'destructive' });
+      return;
     }
+    
+    setIsFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
+          if (!response.ok) throw new Error('Failed to reverse geocode.');
+          const data = await response.json();
+          if (data.features && data.features.length > 0) {
+            form.setValue('location', data.features[0].place_name, { shouldValidate: true });
+            toast({ title: 'Location Filled', description: 'Your address has been auto-filled.' });
+          } else {
+            throw new Error('No address found for coordinates.');
+          }
+        } catch (error) {
+          console.error("Location autofill error:", error);
+          toast({ title: 'Location Error', description: 'Could not fetch address. Please enter it manually.', variant: 'destructive' });
+        } finally {
+          setIsFetchingLocation(false);
+        }
+      },
+      (error) => {
+        setIsFetchingLocation(false);
+        toast({ title: 'Location Denied', description: 'Please enable location services or enter an address manually.', variant: 'destructive' });
+      }
+    );
   };
   
-  const getCoordsFromAddress = async (address: string): Promise<{ lat: number; lng: number }> => {
+  const getCoordsFromAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
     try {
         const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}`);
         if (!response.ok) throw new Error('Failed to geocode address');
@@ -135,31 +138,36 @@ export default function ReportForm() {
             const [lng, lat] = data.features[0].center;
             return { lat, lng };
         }
-        throw new Error('Could not find coordinates for the address.');
+        return null;
     } catch (error) {
         console.error("Geocoding failed:", error);
-        toast({ title: 'Geocoding Error', description: 'Could not find coordinates for the address. Please try a different address.', variant: 'destructive' });
-        // Throw error to stop submission
-        throw error;
+        return null;
     }
   };
 
   const onSubmit = async (values: z.infer<typeof issueSchema>) => {
     if (!user || !userProfile) {
-      toast({ title: 'Error', description: 'You must be logged in to report an issue.', variant: 'destructive' });
+      toast({ title: 'Authentication Error', description: 'You must be logged in to report an issue.', variant: 'destructive' });
       return;
     }
+    
     setIsSubmitting(true);
 
     try {
+      // 1. Get Coordinates
+      const locationCoords = await getCoordsFromAddress(values.location);
+      if (!locationCoords) {
+          toast({ title: 'Location Error', description: 'Could not find coordinates for the address. Please try a different address.', variant: 'destructive' });
+          throw new Error("Geocoding failed");
+      }
+
+      // 2. Upload Photo
       const photoFile = values.photo[0];
       const storageRef = ref(storage, `issues/${user.uid}/${Date.now()}_${photoFile.name}`);
-      
       await uploadBytes(storageRef, photoFile);
       const photoUrl = await getDownloadURL(storageRef);
       
-      const locationCoords = await getCoordsFromAddress(values.location);
-
+      // 3. Prepare Firestore Document
       const newIssue = {
         userId: user.uid,
         userName: userProfile.name || 'Anonymous',
@@ -172,28 +180,34 @@ export default function ReportForm() {
         updatedAt: serverTimestamp(),
       };
 
+      // 4. Save to Firestore
       const docRef = await addDoc(collection(db, 'issues'), newIssue);
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
-      
-      // AI routing can run in the background without blocking user flow
+
+      // 5. Trigger AI routing (non-blocking)
       autoRouteIssueToDepartment({
         category: newIssue.category,
         description: newIssue.description,
         location: newIssue.location
-      }).then(async (routingResponse) => {
+      }).then(routingResponse => {
         console.log("AI Routing successful:", routingResponse);
-        // Optionally update the firestore document with AI routing info
       }).catch(aiError => {
         console.error("AI routing failed:", aiError);
-        // Don't bother user with this error, just log it
       });
-
+      
+      // 6. Redirect
       router.push('/dashboard/my-reports');
+
     } catch (error) {
       console.error("Submission Failed:", error);
-      toast({ title: 'Submission Failed', description: 'There was an error reporting your issue. Please check your details and try again.', variant: 'destructive' });
+      // The specific error toast is shown in the function that throws it
+      // This is a general fallback.
+      if (error instanceof Error && error.message !== "Geocoding failed") {
+          toast({ title: 'Submission Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
+      }
     } finally {
+      // THIS IS CRUCIAL: Always reset the submitting state
       setIsSubmitting(false);
     }
   };
@@ -270,11 +284,11 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field: { onChange, value, ...fieldProps } }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
-                <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files)} disabled={isSubmitting || !isReadyToSubmit} {...fieldProps} />
+                <Input type="file" accept="image/*" disabled={isSubmitting || !isReadyToSubmit} {...fileRef} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -292,8 +306,8 @@ export default function ReportForm() {
         {!isReadyToSubmit && (
              <Alert variant="destructive">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <AlertTitle>Initializing Form</AlertTitle>
-                <AlertDescription>Please wait a moment. The form will be enabled shortly.</AlertDescription>
+                <AlertTitle>Initializing</AlertTitle>
+                <AlertDescription>Please wait, preparing the form...</AlertDescription>
             </Alert>
         )}
       </form>
