@@ -26,7 +26,7 @@ const issueSchema = z.object({
   location: z.object({
       lat: z.number(),
       lng: z.number(),
-      address: z.string().min(5, 'Please provide a location or address.'),
+      address: z.string().min(1, 'Please provide your location.'),
   }),
   photo: z.any().refine(files => files?.length === 1, 'A photo is required.'),
 });
@@ -117,14 +117,13 @@ export default function ReportForm() {
         const { latitude, longitude } = position.coords;
         const address = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
         
-        // IMPORTANT: Use the precise coordinates from GPS, and the fetched address.
-        form.setValue('location', { lat: latitude, lng: longitude, address }, { shouldValidate: true });
+        form.setValue('location', { lat: latitude, lng: longitude, address: address }, { shouldValidate: true });
         toast({ title: 'Location Filled', description: 'Your current location has been set.' });
         setIsFetchingLocation(false);
       },
       (error) => {
         setIsFetchingLocation(false);
-        toast({ title: 'Location Denied', description: 'Please enable location services or enter an address manually.', variant: 'destructive' });
+        toast({ title: 'Location Denied', description: 'Could not get your location. Please enable location services.', variant: 'destructive' });
       }
     );
   };
@@ -186,7 +185,7 @@ export default function ReportForm() {
       };
 
       toast({ title: 'Processing...', description: 'Saving your report.' });
-      await addDoc(collection(db, 'issues'), newIssue);
+      const docRef = await addDoc(collection(db, 'issues'), newIssue);
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
 
@@ -275,8 +274,8 @@ export default function ReportForm() {
                   <FormControl>
                     <Input 
                       placeholder="Click the pin to get your current location" 
-                      {...field} 
-                       
+                      {...field}
+                      readOnly
                       disabled={isSubmitting || isFetchingLocation || !isReadyToSubmit} 
                     />
                   </FormControl>
