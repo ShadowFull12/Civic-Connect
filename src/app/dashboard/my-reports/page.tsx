@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -39,8 +40,7 @@ export default function MyReportsPage() {
 
     const q = query(
       collection(db, 'issues'), 
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -48,12 +48,26 @@ export default function MyReportsPage() {
       querySnapshot.forEach((doc) => {
         userIssues.push({ id: doc.id, ...doc.data() } as Issue);
       });
+      // Sort issues by creation date, descending
+      userIssues.sort((a, b) => {
+        const dateA = a.createdAt?.toDate() ?? new Date(0);
+        const dateB = b.createdAt?.toDate() ?? new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
       setIssues(userIssues);
       setLoading(false);
+    }, (error) => {
+        console.error("Error fetching reports: ", error);
+        toast({
+            title: "Error",
+            description: "Could not fetch your reports. Please try again later.",
+            variant: "destructive",
+        });
+        setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, toast]);
 
   const handleDelete = async (issueId: string) => {
     setIsDeleting(issueId);
@@ -111,7 +125,7 @@ export default function MyReportsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {issues.map(issue => (
                 <Card key={issue.id} className="overflow-hidden flex flex-col group relative">
-                  {issue.id && (
+                   {issue.id && (
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button
@@ -136,7 +150,7 @@ export default function MyReportsPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(issue.id!)}>
+                            <AlertDialogAction onClick={() => issue.id && handleDelete(issue.id)}>
                               Yes, delete it
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -163,7 +177,7 @@ export default function MyReportsPage() {
                   </CardContent>
                   <CardFooter className="flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">
-                      {format(issue.createdAt.toDate(), 'PPP')}
+                      {issue.createdAt ? format(issue.createdAt.toDate(), 'PPP') : 'Date not available'}
                     </p>
                     <Badge variant={getStatusVariant(issue.status)} className="capitalize">{issue.status}</Badge>
                   </CardFooter>
