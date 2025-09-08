@@ -48,8 +48,8 @@ export default function MapView({ apiKey }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
 
   const [viewState, setViewState] = useState({
-    longitude: 88.43,
-    latitude: 22.57,
+    longitude: -74.006,
+    latitude: 40.7128,
     zoom: 12,
   });
 
@@ -117,7 +117,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         unsubscribe();
         if(watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isInitialLoad]);
+  }, []);
 
   const points = useMemo(() => issues.map(issue => ({
     type: 'Feature' as const,
@@ -140,11 +140,11 @@ export default function MapView({ apiKey }: MapViewProps) {
     options: { radius: 75, maxZoom: 20 },
   });
   
-  if (isInitialLoad) {
+  if (isInitialLoad && !locationError) {
     return (
         <div className="relative h-full w-full flex items-center justify-center bg-card">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2 font-semibold">Initializing Map...</p>
+            <p className="ml-2 font-semibold">Waiting for location...</p>
         </div>
     )
   }
@@ -162,7 +162,12 @@ export default function MapView({ apiKey }: MapViewProps) {
             onMove={evt => {
                 setViewState(evt.viewState);
                 setZoom(evt.viewState.zoom);
-                setBounds(evt.target.getBounds().toArray().flat() as [number, number, number, number]);
+                const newBounds = evt.target.getBounds().toArray().flat() as [number, number, number, number];
+                setBounds(newBounds);
+            }}
+            onLoad={evt => {
+                const newBounds = evt.target.getBounds().toArray().flat() as [number, number, number, number];
+                setBounds(newBounds);
             }}
             style={{ width: '100%', height: '100%' }}
             mapStyle={`https://api.maptiler.com/maps/dataviz-dark/style.json?key=${apiKey}`}
