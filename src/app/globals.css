@@ -89,18 +89,21 @@
       box-shadow: none;
   }
   .maplibregl-popup-close-button {
-      color: white;
-      background: rgba(0,0,0,0.5);
+      color: hsl(var(--foreground));
+      background: hsl(var(--background) / 0.8);
+      backdrop-filter: blur(4px);
+      border: 1px solid hsl(var(--border));
       border-radius: 9999px;
-      width: 24px;
-      height: 24px;
-      font-size: 16px;
-      line-height: 24px;
-      margin: 4px;
-      transition: background 0.2s;
+      width: 28px;
+      height: 28px;
+      font-size: 20px;
+      line-height: 28px;
+      margin: 6px;
+      transition: all 0.2s;
   }
   .maplibregl-popup-close-button:hover {
-      background: rgba(0,0,0,0.8);
+      background: hsl(var(--accent));
+      transform: scale(1.1);
   }
   .maplibregl-popup-anchor-left .maplibregl-popup-tip {
       border-right-color: hsl(var(--border));

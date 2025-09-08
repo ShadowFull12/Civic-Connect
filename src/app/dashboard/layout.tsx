@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <main className="min-h-screen pb-16 md:pb-0">
               <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
                 <div className="md:hidden">
-                  <SidebarTrigger />
+                  {!isMobile && <SidebarTrigger />}
                 </div>
                 <h1 className="text-xl font-semibold font-headline">Civic Connect</h1>
               </header>

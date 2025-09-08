@@ -92,7 +92,9 @@ export default function MapView({ apiKey }: MapViewProps) {
                 break;
             }
             setLocationError(errorMessage);
-            setIsInitialLoad(false);
+            if (isInitialLoad) {
+               setIsInitialLoad(false);
+            }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
@@ -117,7 +119,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         unsubscribe();
         if(watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [isInitialLoad]);
 
   const points = useMemo(() => issues.map(issue => ({
     type: 'Feature' as const,
