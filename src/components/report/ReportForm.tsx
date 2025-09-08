@@ -18,7 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Mic, MapPin, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Mic, MapPin } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const issueSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
@@ -49,11 +50,14 @@ export default function ReportForm() {
   const form = useForm<z.infer<typeof issueSchema>>({
     resolver: zodResolver(issueSchema),
     defaultValues: {
+      category: '',
       description: '',
+      photo: undefined,
     },
   });
 
   useEffect(() => {
+    // We are on the client side, so we can safely access navigator
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -64,13 +68,13 @@ export default function ReportForm() {
           setLocationError(null);
         },
         () => {
-          setLocationError('Could not get your location. Please enable location services.');
+          setLocationError('Could not get your location. Please enable location services in your browser settings.');
         }
       );
     } else {
       setLocationError('Geolocation is not supported by your browser.');
     }
-    
+
     // Speech Recognition setup
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -98,6 +102,7 @@ export default function ReportForm() {
     if (recognitionRef.current) {
       if (isListening) {
         recognitionRef.current.stop();
+        setIsListening(false);
       } else {
         recognitionRef.current.start();
         setIsListening(true);
@@ -108,8 +113,10 @@ export default function ReportForm() {
   };
 
   const onSubmit = async (values: z.infer<typeof issueSchema>) => {
+    // The dashboard layout already protects this page, so user is guaranteed to be logged in.
+    // We also disable the submit button until location and user profile are ready.
     if (!user || !userProfile || !location) {
-      toast({ title: 'Error', description: 'You must be logged in and have location enabled.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'User information or location is not available yet. Please wait a moment and try again.', variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
@@ -118,13 +125,14 @@ export default function ReportForm() {
     try {
       const photoFile = values.photo[0];
       const storageRef = ref(storage, `issues/${user.uid}/${Date.now()}_${photoFile.name}`);
-      const uploadTask = await uploadBytes(storageRef, photoFile, {
-        onProgress: (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-      });
-      const photoUrl = await getDownloadURL(uploadTask.ref);
+      
+      // Upload Task with progress
+      const uploadTask = uploadBytes(storageRef, photoFile);
+      // For simplicity, we are not showing granular progress, just the loading state.
+      // If you need to show progress, you can use `uploadTask.on('state_changed', ...)`
+      await uploadTask;
+
+      const photoUrl = await getDownloadURL(storageRef);
 
       const newIssue = {
         userId: user.uid,
@@ -132,28 +140,22 @@ export default function ReportForm() {
         category: values.category,
         description: values.description,
         photoUrl,
-        location: { ...location, address: 'Fetching address...' }, // Placeholder address
+        location: { ...location, address: 'Fetching address...' },
         status: 'pending' as const,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, 'issues'), newIssue);
+      await addDoc(collection(db, 'issues'), newIssue);
       
-      // Auto-route with GenAI
-      try {
-        const routingResult = await autoRouteIssueToDepartment({
-          category: newIssue.category,
-          description: newIssue.description,
-          location: { lat: newIssue.location.lat, lng: newIssue.location.lng, address: 'N/A' } // AI doesn't need precise address string
-        });
-        // You can update the document with the department here
-        // await updateDoc(docRef, { assignedDepartment: routingResult.department, reasonForAssignment: routingResult.reason });
-      } catch (aiError) {
+      // Auto-route with GenAI (non-blocking)
+      autoRouteIssueToDepartment({
+        category: newIssue.category,
+        description: newIssue.description,
+        location: { lat: newIssue.location.lat, lng: newIssue.location.lng, address: 'N/A' }
+      }).catch(aiError => {
         console.error("AI routing failed:", aiError);
-        // non-blocking, so we continue
-      }
-
+      });
 
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
       router.push('/dashboard/my-reports');
@@ -165,17 +167,19 @@ export default function ReportForm() {
       setUploadProgress(null);
     }
   };
+  
+  const isReady = !!user && !!userProfile && !!location;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an issue category" />
@@ -197,13 +201,14 @@ export default function ReportForm() {
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <Textarea placeholder="Describe the issue in detail..." {...field} />
+                  <Textarea placeholder="Describe the issue in detail..." {...field} disabled={isSubmitting} />
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     className={`absolute bottom-2 right-2 h-7 w-7 ${isListening ? 'text-destructive animate-pulse' : ''}`}
                     onClick={handleMicClick}
+                    disabled={isSubmitting}
                   >
                     <Mic className="h-4 w-4" />
                   </Button>
@@ -220,28 +225,43 @@ export default function ReportForm() {
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
-                <Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)} />
+                <Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="flex items-center gap-2 p-3 rounded-md bg-muted text-sm">
-          <MapPin className="h-5 w-5 text-primary" />
-          {location ? 
-            <span>Location captured: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span> :
-            <span className="text-destructive">{locationError || 'Capturing location...'}</span>
-          }
-        </div>
+        
+        {locationError && (
+            <Alert variant="destructive">
+                <MapPin className="h-4 w-4" />
+                <AlertTitle>Location Error</AlertTitle>
+                <AlertDescription>{locationError}</AlertDescription>
+            </Alert>
+        )}
+        
+        {location && (
+             <div className="flex items-center gap-2 p-3 rounded-md bg-muted text-sm">
+                <MapPin className="h-5 w-5 text-primary" />
+                <span>Location captured: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
+            </div>
+        )}
+
         {uploadProgress !== null && (
           <div className="space-y-2">
             <Label>Uploading...</Label>
             <Progress value={uploadProgress} />
           </div>
         )}
-        <Button type="submit" disabled={isSubmitting || !location} className="w-full">
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Submit Report
+
+        <Button type="submit" disabled={!isReady || isSubmitting} className="w-full">
+          {isSubmitting ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+          ) : !isReady ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Waiting for location...</>
+          ) : (
+            'Submit Report'
+          )}
         </Button>
       </form>
     </Form>
