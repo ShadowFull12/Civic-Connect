@@ -43,7 +43,6 @@ const issueCategories = [
   'Other'
 ];
 
-const MAPTILER_API_KEY = 'lzZb3ygVJBpZSlkEQ2fv';
 const IMGBB_API_KEY = 'a8e65a8b99f65946fde5447b73356856';
 
 
@@ -114,27 +113,14 @@ export default function ReportForm() {
     
     setIsFetchingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const { latitude, longitude } = position.coords;
-        let address = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+        const address = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
         
-        try {
-          const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.features && data.features.length > 0) {
-              address = data.features[0].place_name;
-            }
-          }
-        } catch (error) {
-          console.error("Reverse geocoding error:", error);
-          toast({ title: 'Address Fetch Failed', description: 'Could not fetch address, using coordinates.', variant: 'default' });
-        } finally {
-          // IMPORTANT: Use the precise coordinates from GPS, and the fetched address.
-          form.setValue('location', { lat: latitude, lng: longitude, address }, { shouldValidate: true });
-          toast({ title: 'Location Filled', description: 'Your current location has been set.' });
-          setIsFetchingLocation(false);
-        }
+        // IMPORTANT: Use the precise coordinates from GPS, and the fetched address.
+        form.setValue('location', { lat: latitude, lng: longitude, address }, { shouldValidate: true });
+        toast({ title: 'Location Filled', description: 'Your current location has been set.' });
+        setIsFetchingLocation(false);
       },
       (error) => {
         setIsFetchingLocation(false);
@@ -200,7 +186,7 @@ export default function ReportForm() {
       };
 
       toast({ title: 'Processing...', description: 'Saving your report.' });
-      const docRef = await addDoc(collection(db, 'issues'), newIssue);
+      await addDoc(collection(db, 'issues'), newIssue);
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
 
@@ -306,18 +292,15 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field: { value, ...fieldProps} }) => (
+          render={({ field }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
                  <Input
-                    {...fieldProps}
                     type="file"
                     accept="image/*"
                     disabled={isSubmitting || !isReadyToSubmit}
-                    onChange={(e) => {
-                        fieldProps.onChange(e.target.files);
-                    }}
+                    {...photoRef}
                   />
               </FormControl>
               <FormMessage />
