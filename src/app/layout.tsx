@@ -5,7 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Civic Connect",
+  title: "NagarMitra",
   description: "Report and resolve civic issues in your community.",
 };
 

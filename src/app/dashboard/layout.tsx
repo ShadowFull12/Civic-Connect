@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="md:hidden">
                   {!isMobile && <SidebarTrigger />}
                 </div>
-                <h1 className="text-xl font-semibold font-headline">Civic Connect</h1>
+                <h1 className="text-xl font-semibold font-headline">NagarMitra</h1>
               </header>
               {children}
             </main>

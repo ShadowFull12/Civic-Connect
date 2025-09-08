@@ -48,7 +48,7 @@ export default function AuthPage() {
           <div className="mb-8 flex flex-col items-center">
             <Icons.logo className="h-16 w-16 text-primary" />
             <h1 className="mt-4 text-3xl font-bold font-headline text-primary">
-              Civic Connect
+              NagarMitra
             </h1>
             <p className="mt-2 text-center text-muted-foreground">
               Your voice for a better community.
