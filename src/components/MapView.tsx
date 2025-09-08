@@ -123,7 +123,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         unsubscribe();
         if(watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [isInitialLoad, isMobile]);
 
   const points = useMemo(() => issues.map(issue => ({
     type: 'Feature' as const,
@@ -161,7 +161,7 @@ export default function MapView({ apiKey }: MapViewProps) {
       center: [issue.location.lng, issue.location.lat],
       zoom: Math.max(16, zoom), // Zoom in if current zoom is too far out
       speed: 1.2,
-      padding: { top: 0, bottom: 250, left: 0, right: 0 } // Add padding to the bottom to push the center up
+      padding: { top: 250, bottom: 0, left: 0, right: 0 }
     });
   };
 
