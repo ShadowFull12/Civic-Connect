@@ -48,8 +48,8 @@ export default function MapView({ apiKey }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
 
   const [viewState, setViewState] = useState({
-    longitude: 88.43, // Default to Kolkata area, will be updated
-    latitude: 22.57,  // Default to Kolkata area, will be updated
+    longitude: 88.43,
+    latitude: 22.57,
     zoom: 12,
   });
 
@@ -73,11 +73,28 @@ export default function MapView({ apiKey }: MapViewProps) {
           setLocationError(null);
         },
         (error) => {
-          console.error("Error getting user location:", error);
-          setLocationError("Could not get your location. Displaying a wider map view.");
-          setIsInitialLoad(false);
+           let errorMessage = "Could not get your location.";
+            switch(error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = "Location access denied. Please enable it in your browser settings.";
+                console.error("User denied Geolocation.");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = "Location information is unavailable.";
+                console.error("Location information is unavailable.");
+                break;
+              case error.TIMEOUT:
+                errorMessage = "The request to get user location timed out.";
+                console.error("The request to get user location timed out.");
+                break;
+              default:
+                 console.error("An unknown error occurred while getting location:", error);
+                break;
+            }
+            setLocationError(errorMessage);
+            setIsInitialLoad(false);
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
        setLocationError("Geolocation is not supported by this browser.");
