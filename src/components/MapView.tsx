@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
 import type { Issue } from '@/lib/types';
-import { Pin, AlertCircle } from 'lucide-react';
+import { Pin, AlertCircle, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -20,30 +21,35 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [currentUserPosition, setCurrentUserPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [viewState, setViewState] = useState({
-    longitude: -74.006,
-    latitude: 40.7128,
-    zoom: 16, // Increased zoom level
+    longitude: 0, // Default to 0, will be updated
+    latitude: 0,  // Default to 0, will be updated
+    zoom: 16,
   });
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Watch user's current location to center the map and show their position
     let watchId: number;
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setCurrentUserPosition({ latitude, longitude });
-          setViewState((prev) => ({
-            ...prev,
-            latitude,
-            longitude,
-          }));
+          const newPosition = { latitude, longitude };
+          setCurrentUserPosition(newPosition);
+          
+          if (isInitialLoad) {
+            setViewState((prev) => ({
+              ...prev,
+              ...newPosition,
+            }));
+            setIsInitialLoad(false);
+          }
           setLocationError(null);
         },
         (error) => {
           console.error("Error getting user location:", error);
-          setLocationError("Could not get user location. Please enable location services in your browser.");
+          setLocationError("Could not get your location. Please enable location services in your browser.");
+          setIsInitialLoad(false);
         },
         {
           enableHighAccuracy: true,
@@ -53,6 +59,7 @@ export default function MapView({ apiKey }: MapViewProps) {
       );
     } else {
        setLocationError("Geolocation is not supported by this browser.");
+       setIsInitialLoad(false);
     }
 
     const q = query(collection(db, "issues"));
@@ -71,7 +78,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         unsubscribe();
         if(watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [isInitialLoad]);
   
   const formatDate = (timestamp: Timestamp | Date): string => {
     if (!timestamp) return "Date not available";
@@ -88,6 +95,24 @@ export default function MapView({ apiKey }: MapViewProps) {
       default: return 'text-gray-500';
     }
   };
+  
+  if (isInitialLoad) {
+    return (
+        <div className="relative h-full w-full flex items-center justify-center bg-muted">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-2">Getting your location...</p>
+        </div>
+    )
+  }
+
+  if (locationError && !currentUserPosition) {
+     return (
+        <div className="relative h-full w-full flex items-center justify-center bg-muted text-center p-4">
+             <AlertCircle className="h-8 w-8 text-destructive mb-2" />
+             <p className="text-destructive">{locationError}</p>
+        </div>
+    )
+  }
   
   return (
     <div className="relative h-full w-full">
