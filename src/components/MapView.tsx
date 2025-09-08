@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import useSupercluster from 'use-supercluster';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MapViewProps {
   apiKey: string;
@@ -46,6 +47,7 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [bounds, setBounds] = useState<[number, number, number, number] | undefined>(undefined);
   const [zoom, setZoom] = useState(16);
   const mapRef = useRef<MapRef>(null);
+  const isMobile = useIsMobile();
 
   const [viewState, setViewState] = useState({
     longitude: -74.006,
@@ -56,17 +58,17 @@ export default function MapView({ apiKey }: MapViewProps) {
   useEffect(() => {
     let watchId: number;
     if (navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
+       watchId = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           const newPosition = { latitude, longitude };
           setCurrentUserPosition(newPosition);
-          
+
           if (isInitialLoad) {
             setViewState((prev) => ({
               ...prev,
               ...newPosition,
-              zoom: 16
+              zoom: isMobile ? 16 : 14,
             }));
             setIsInitialLoad(false);
           }
@@ -119,7 +121,7 @@ export default function MapView({ apiKey }: MapViewProps) {
         unsubscribe();
         if(watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isInitialLoad]);
+  }, [isInitialLoad, isMobile]);
 
   const points = useMemo(() => issues.map(issue => ({
     type: 'Feature' as const,
@@ -252,27 +254,32 @@ export default function MapView({ apiKey }: MapViewProps) {
                 closeOnClick={true}
                 anchor="left"
                 offset={20}
-                className="font-body"
+                className="font-body z-20"
                 >
-                <div className="w-64 bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border">
-                    {selectedIssue.photoUrl && (
-                        <div className="relative w-full h-32">
-                            <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
-                        </div>
-                    )}
-                    <div className="p-3">
-                        <h3 className="font-bold font-headline text-lg mb-1" style={{color: categoryColors[selectedIssue.category]}}>{selectedIssue.category}</h3>
-                        <p className="text-sm mb-2 text-muted-foreground">{selectedIssue.description}</p>
-                        <div className="text-xs text-muted-foreground/80 mb-3 space-y-0.5">
-                            <p>Reported by: <span className="font-semibold">{selectedIssue.userName}</span></p>
-                            <p title={format(selectedIssue.createdAt.toDate(), 'PPP p')}>
-                              {formatDistanceToNow(selectedIssue.createdAt.toDate(), { addSuffix: true })}
-                            </p>
-                        </div>
-                         <div className="flex items-center gap-2">
-                             <div className={`w-3 h-3 rounded-full ${getStatusColorClass(selectedIssue.status)}`}></div>
-                            <span className="text-sm capitalize font-medium">{selectedIssue.status}</span>
-                         </div>
+                <div 
+                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-left transition-transform duration-300"
+                  style={{ transform: `scale(${Math.max(0.5, Math.min(1, zoom / 12))})`}}
+                >
+                    <div className="w-64">
+                      {selectedIssue.photoUrl && (
+                          <div className="relative w-full h-32">
+                              <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
+                          </div>
+                      )}
+                      <div className="p-3">
+                          <h3 className="font-bold font-headline text-lg mb-1" style={{color: categoryColors[selectedIssue.category]}}>{selectedIssue.category}</h3>
+                          <p className="text-sm mb-2 text-muted-foreground">{selectedIssue.description}</p>
+                          <div className="text-xs text-muted-foreground/80 mb-3 space-y-0.5">
+                              <p>Reported by: <span className="font-semibold">{selectedIssue.userName}</span></p>
+                              <p title={format(selectedIssue.createdAt.toDate(), 'PPP p')}>
+                                {formatDistanceToNow(selectedIssue.createdAt.toDate(), { addSuffix: true })}
+                              </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${getStatusColorClass(selectedIssue.status)}`}></div>
+                              <span className="text-sm capitalize font-medium">{selectedIssue.status}</span>
+                          </div>
+                      </div>
                     </div>
                 </div>
                 </Popup>
