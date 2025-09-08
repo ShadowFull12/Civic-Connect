@@ -101,9 +101,10 @@ export default function ReportForm() {
           try {
             const { latitude, longitude } = position.coords;
             const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
+            if (!response.ok) throw new Error('Failed to fetch address');
             const data = await response.json();
             if (data.features && data.features.length > 0) {
-              form.setValue('location', data.features[0].place_name);
+              form.setValue('location', data.features[0].place_name, { shouldValidate: true });
               toast({ title: 'Location Filled', description: 'Your address has been auto-filled.' });
             } else {
               throw new Error('No address found for coordinates.');
@@ -128,6 +129,7 @@ export default function ReportForm() {
   const getCoordsFromAddress = async (address: string): Promise<{ lat: number; lng: number }> => {
     try {
         const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}`);
+        if (!response.ok) throw new Error('Failed to geocode address');
         const data = await response.json();
         if (data.features && data.features.length > 0) {
             const [lng, lat] = data.features[0].center;
@@ -136,8 +138,9 @@ export default function ReportForm() {
         throw new Error('Could not find coordinates for the address.');
     } catch (error) {
         console.error("Geocoding failed:", error);
-        toast({ title: 'Geocoding Error', description: 'Could not find coordinates for the address. Defaulting to (0,0).', variant: 'destructive' });
-        return { lat: 0, lng: 0 };
+        toast({ title: 'Geocoding Error', description: 'Could not find coordinates for the address. Please try a different address.', variant: 'destructive' });
+        // Throw error to stop submission
+        throw error;
     }
   };
 
@@ -173,22 +176,23 @@ export default function ReportForm() {
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
       
+      // AI routing can run in the background without blocking user flow
       autoRouteIssueToDepartment({
         category: newIssue.category,
         description: newIssue.description,
         location: newIssue.location
       }).then(async (routingResponse) => {
-        // This runs in the background and does not block submission
-        // In a real app, you might want to update the issue document with the routing info
         console.log("AI Routing successful:", routingResponse);
+        // Optionally update the firestore document with AI routing info
       }).catch(aiError => {
         console.error("AI routing failed:", aiError);
+        // Don't bother user with this error, just log it
       });
 
       router.push('/dashboard/my-reports');
     } catch (error) {
-      console.error(error);
-      toast({ title: 'Submission Failed', description: 'There was an error reporting your issue. Please try again.', variant: 'destructive' });
+      console.error("Submission Failed:", error);
+      toast({ title: 'Submission Failed', description: 'There was an error reporting your issue. Please check your details and try again.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -205,7 +209,7 @@ export default function ReportForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting || !isReadyToSubmit}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an issue category" />
@@ -227,14 +231,14 @@ export default function ReportForm() {
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <Textarea placeholder="Describe the issue in detail..." {...field} disabled={isSubmitting} />
+                  <Textarea placeholder="Describe the issue in detail..." {...field} disabled={isSubmitting || !isReadyToSubmit} />
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     className={`absolute bottom-2 right-2 h-7 w-7 ${isListening ? 'text-destructive animate-pulse' : ''}`}
                     onClick={handleMicClick}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !isReadyToSubmit}
                   >
                     <Mic className="h-4 w-4" />
                   </Button>
@@ -252,9 +256,9 @@ export default function ReportForm() {
               <FormLabel>Location</FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
-                    <Input placeholder="Enter address or cross-streets" {...field} disabled={isSubmitting} />
+                    <Input placeholder="Enter address or cross-streets" {...field} disabled={isSubmitting || !isReadyToSubmit} />
                   </FormControl>
-                  <Button type="button" variant="outline" size="icon" onClick={handleAutoFillLocation} disabled={isSubmitting || isFetchingLocation}>
+                  <Button type="button" variant="outline" size="icon" onClick={handleAutoFillLocation} disabled={isSubmitting || isFetchingLocation || !isReadyToSubmit}>
                     {isFetchingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
                     <span className="sr-only">Auto-fill location</span>
                   </Button>
@@ -266,11 +270,11 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field }) => (
+          render={({ field: { onChange, ...fieldProps } }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
-                <Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
+                <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files)} disabled={isSubmitting || !isReadyToSubmit} {...fieldProps} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -288,8 +292,8 @@ export default function ReportForm() {
         {!isReadyToSubmit && (
              <Alert variant="destructive">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <AlertTitle>Verifying User</AlertTitle>
-                <AlertDescription>Please wait while we verify your information. The submit button will be enabled shortly.</AlertDescription>
+                <AlertTitle>Initializing Form</AlertTitle>
+                <AlertDescription>Please wait a moment. The form will be enabled shortly.</AlertDescription>
             </Alert>
         )}
       </form>
