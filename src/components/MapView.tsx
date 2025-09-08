@@ -7,12 +7,14 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
 import type { Issue } from '@/lib/types';
-import { Layers, AlertCircle, Loader2, Pin } from 'lucide-react';
+import { Layers, AlertCircle, Loader2, Pin, Maximize } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import useSupercluster from 'use-supercluster';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from './ui/button';
 
 interface MapViewProps {
   apiKey: string;
@@ -153,6 +155,15 @@ export default function MapView({ apiKey }: MapViewProps) {
     )
   }
   
+  const handlePinClick = (issue: Issue) => {
+    setSelectedIssue(issue);
+    mapRef.current?.flyTo({
+      center: [issue.location.lng, issue.location.lat],
+      zoom: Math.max(16, zoom), // Zoom in if current zoom is too far out
+      speed: 1.2,
+    });
+  };
+
   return (
     <div className="relative h-full w-full">
         {locationError && (
@@ -222,7 +233,7 @@ export default function MapView({ apiKey }: MapViewProps) {
                     longitude={longitude}
                     onClick={(e) => {
                         e.originalEvent.stopPropagation();
-                        setSelectedIssue(issue);
+                        handlePinClick(issue);
                     }}
                 >
                     <div className="flex flex-col items-center cursor-pointer group">
@@ -257,29 +268,35 @@ export default function MapView({ apiKey }: MapViewProps) {
                 className="font-body z-20"
                 >
                 <div 
-                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-left transition-transform duration-300"
+                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-left transition-transform duration-300 w-64"
                   style={{ transform: `scale(${Math.max(0.5, Math.min(1, zoom / 12))})`}}
                 >
-                    <div className="w-64">
-                      {selectedIssue.photoUrl && (
-                          <div className="relative w-full h-32">
-                              <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
-                          </div>
-                      )}
-                      <div className="p-3">
-                          <h3 className="font-bold font-headline text-lg mb-1" style={{color: categoryColors[selectedIssue.category]}}>{selectedIssue.category}</h3>
-                          <p className="text-sm mb-2 text-muted-foreground">{selectedIssue.description}</p>
-                          <div className="text-xs text-muted-foreground/80 mb-3 space-y-0.5">
-                              <p>Reported by: <span className="font-semibold">{selectedIssue.userName}</span></p>
-                              <p title={format(selectedIssue.createdAt.toDate(), 'PPP p')}>
-                                {formatDistanceToNow(selectedIssue.createdAt.toDate(), { addSuffix: true })}
-                              </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                              <div className={`w-3 h-3 rounded-full ${getStatusColorClass(selectedIssue.status)}`}></div>
-                              <span className="text-sm capitalize font-medium">{selectedIssue.status}</span>
-                          </div>
-                      </div>
+                    <Dialog>
+                       <DialogTrigger asChild>
+                           <div className="relative w-full h-32 cursor-pointer group">
+                                <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Maximize className="h-8 w-8 text-white" />
+                                </div>
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent className="p-0 border-0 max-w-4xl">
+                            <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} width={1024} height={768} className="w-full h-auto object-contain rounded-lg"/>
+                        </DialogContent>
+                    </Dialog>
+                    <div className="p-3">
+                        <h3 className="font-bold font-headline text-lg mb-1" style={{color: categoryColors[selectedIssue.category]}}>{selectedIssue.category}</h3>
+                        <p className="text-sm mb-2 text-muted-foreground">{selectedIssue.description}</p>
+                        <div className="text-xs text-muted-foreground/80 mb-3 space-y-0.5">
+                            <p>Reported by: <span className="font-semibold">{selectedIssue.userName}</span></p>
+                            <p title={format(selectedIssue.createdAt.toDate(), 'PPP p')}>
+                              {formatDistanceToNow(selectedIssue.createdAt.toDate(), { addSuffix: true })}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${getStatusColorClass(selectedIssue.status)}`}></div>
+                            <span className="text-sm capitalize font-medium">{selectedIssue.status}</span>
+                        </div>
                     </div>
                 </div>
                 </Popup>
@@ -297,3 +314,5 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
+
+    
