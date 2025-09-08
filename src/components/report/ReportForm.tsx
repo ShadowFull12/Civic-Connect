@@ -115,22 +115,24 @@ export default function ReportForm() {
     setIsFetchingLocation(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        const { latitude, longitude } = position.coords;
+        let address = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+        
         try {
-          const { latitude, longitude } = position.coords;
           const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_API_KEY}`);
-          if (!response.ok) throw new Error('Failed to reverse geocode.');
-          const data = await response.json();
-          if (data.features && data.features.length > 0) {
-            const address = data.features[0].place_name;
-            form.setValue('location', { lat: latitude, lng: longitude, address }, { shouldValidate: true });
-            toast({ title: 'Location Filled', description: 'Your address has been auto-filled.' });
-          } else {
-            throw new Error('No address found for coordinates.');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.features && data.features.length > 0) {
+              address = data.features[0].place_name;
+            }
           }
         } catch (error) {
-          console.error("Location autofill error:", error);
-          toast({ title: 'Location Error', description: 'Could not fetch address. Please enter it manually.', variant: 'destructive' });
+          console.error("Reverse geocoding error:", error);
+          toast({ title: 'Address Fetch Failed', description: 'Could not fetch address, using coordinates.', variant: 'default' });
         } finally {
+          // IMPORTANT: Use the precise coordinates from GPS, and the fetched address.
+          form.setValue('location', { lat: latitude, lng: longitude, address }, { shouldValidate: true });
+          toast({ title: 'Location Filled', description: 'Your current location has been set.' });
           setIsFetchingLocation(false);
         }
       },
@@ -176,37 +178,32 @@ export default function ReportForm() {
     }
     
     setIsSubmitting(true);
-    let photoUrl: string | null = null;
 
     try {
-      // 1. Upload Photo
       toast({ title: 'Processing...', description: 'Uploading your photo.' });
       const photoFile = values.photo[0];
-      photoUrl = await uploadPhotoToImgBB(photoFile);
+      const photoUrl = await uploadPhotoToImgBB(photoFile);
       if (!photoUrl) {
           throw new Error("Photo upload failed");
       }
       
-      // 2. Prepare Firestore Document
       const newIssue = {
         userId: user.uid,
         userName: userProfile.name || 'Anonymous',
         category: values.category,
         description: values.description,
         photoUrl,
-        location: values.location, // location is now an object
+        location: values.location,
         status: 'pending' as const,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      // 3. Save to Firestore
-      toast({ title: 'Processing...', description: 'Saving your report to the database.' });
+      toast({ title: 'Processing...', description: 'Saving your report.' });
       const docRef = await addDoc(collection(db, 'issues'), newIssue);
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
 
-      // 4. Trigger AI routing (non-blocking)
       autoRouteIssueToDepartment({
         category: newIssue.category,
         description: newIssue.description,
@@ -217,14 +214,15 @@ export default function ReportForm() {
         console.error("AI routing failed:", aiError);
       });
       
-      // 5. Redirect
       router.push('/dashboard/my-reports');
 
     } catch (error) {
       console.error("Submission Failed:", error);
-      if (!(error instanceof Error && error.message === "Photo upload failed")) {
-           toast({ title: 'Submission Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
-      }
+      toast({ 
+          title: 'Submission Failed', 
+          description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.', 
+          variant: 'destructive' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -308,15 +306,18 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field }) => (
+          render={({ field: { value, ...fieldProps} }) => (
             <FormItem>
               <FormLabel>Photo</FormLabel>
               <FormControl>
                  <Input
-                    {...photoRef}
+                    {...fieldProps}
                     type="file"
                     accept="image/*"
                     disabled={isSubmitting || !isReadyToSubmit}
+                    onChange={(e) => {
+                        fieldProps.onChange(e.target.files);
+                    }}
                   />
               </FormControl>
               <FormMessage />
@@ -343,5 +344,3 @@ export default function ReportForm() {
     </Form>
   );
 }
-
-    
