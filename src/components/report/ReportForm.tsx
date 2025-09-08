@@ -256,7 +256,7 @@ export default function ReportForm() {
               <FormLabel>Location</FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
-                    <Input placeholder="Enter address or cross-streets" {...field} disabled={isSubmitting || !isReadyToSubmit} />
+                    <Input placeholder="Enter address or cross-streets" {...field} disabled={isSubmitting || isFetchingLocation || !isReadyToSubmit} />
                   </FormControl>
                   <Button type="button" variant="outline" size="icon" onClick={handleAutoFillLocation} disabled={isSubmitting || isFetchingLocation || !isReadyToSubmit}>
                     {isFetchingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
