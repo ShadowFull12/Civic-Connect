@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, FileText, Trash2, ShieldAlert } from 'lucide-react';
+import { Loader2, FileText, Trash2, ShieldAlert, Maximize } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -157,15 +158,37 @@ export default function MyReportsPage() {
                         </AlertDialogContent>
                       </AlertDialog>
                   )}
-                  <div className="relative h-48 w-full">
-                    <Image
-                      src={issue.photoUrl}
-                      alt={issue.category}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover"
-                    />
-                  </div>
+                   <Dialog>
+                        <DialogTrigger asChild>
+                           <div className="relative h-48 w-full cursor-pointer group/image">
+                                <Image
+                                src={issue.photoUrl}
+                                alt={issue.category}
+                                fill
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                className="object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                    <Maximize className="h-8 w-8 text-white" />
+                                </div>
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent className="p-0 border-0 max-w-none w-auto h-auto bg-transparent grid place-items-center">
+                            <DialogHeader className="sr-only">
+                                <DialogTitle>Issue Image: {issue.category}</DialogTitle>
+                                <DialogDescription>{issue.description}</DialogDescription>
+                            </DialogHeader>
+                            <div className="relative w-[90vw] h-[90vh]">
+                                <Image 
+                                    src={issue.photoUrl} 
+                                    alt={issue.category} 
+                                    fill 
+                                    sizes="90vw"
+                                    className="object-contain"
+                                />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                   <CardHeader>
                     <CardTitle>{issue.category}</CardTitle>
                     <CardDescription>{issue.description}</CardDescription>

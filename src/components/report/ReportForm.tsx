@@ -11,13 +11,14 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { autoRouteIssueToDepartment } from '@/ai/flows/auto-route-issues-to-department';
+import { suggestIssueCategory } from '@/ai/flows/suggest-issue-category';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, Mic, MapPin } from 'lucide-react';
+import { Loader2, Mic, MapPin, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const issueSchema = z.object({
@@ -52,6 +53,7 @@ export default function ReportForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [isSuggestingCategory, setIsSuggestingCategory] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -128,6 +130,30 @@ export default function ReportForm() {
     );
   };
   
+  const handleSuggestCategory = async () => {
+    const description = form.getValues('description');
+    if (!description || description.length < 10) {
+      form.setError('description', { type: 'manual', message: 'Please enter a description of at least 10 characters to suggest a category.' });
+      return;
+    }
+    
+    setIsSuggestingCategory(true);
+    try {
+      const result = await suggestIssueCategory({ description });
+      if (result.category && issueCategories.includes(result.category)) {
+        form.setValue('category', result.category, { shouldValidate: true });
+        toast({ title: 'Category Suggested', description: `We've selected the "${result.category}" category for you.` });
+      } else {
+        throw new Error('AI returned an invalid category.');
+      }
+    } catch (error) {
+      console.error("AI category suggestion failed:", error);
+      toast({ title: 'Suggestion Failed', description: 'Could not suggest a category. Please select one manually.', variant: 'destructive' });
+    } finally {
+      setIsSuggestingCategory(false);
+    }
+  };
+
   const uploadPhotoToImgBB = async (photoFile: File): Promise<string | null> => {
     const formData = new FormData();
     formData.append('image', photoFile);
@@ -221,26 +247,6 @@ export default function ReportForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting || !isReadyToSubmit}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an issue category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {issueCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
@@ -260,6 +266,32 @@ export default function ReportForm() {
                   </Button>
                 </div>
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+                <div className="flex gap-2">
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isSubmitting || !isReadyToSubmit}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an issue category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {issueCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                   <Button type="button" variant="outline" onClick={handleSuggestCategory} disabled={isSubmitting || isSuggestingCategory || !isReadyToSubmit}>
+                    {isSuggestingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Suggest</span>
+                  </Button>
+                </div>
               <FormMessage />
             </FormItem>
           )}
