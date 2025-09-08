@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +36,8 @@ const issueCategories = [
 ];
 
 const MAPTILER_API_KEY = 'lzZb3ygVJBpZSlkEQ2fv';
+const IMGBB_API_KEY = 'a8e65a8b99f65946fde5447b73356856';
+
 
 export default function ReportForm() {
   const { user, userProfile } = useAuth();
@@ -144,6 +145,34 @@ export default function ReportForm() {
         return null;
     }
   };
+  
+  const uploadPhotoToImgBB = async (photoFile: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append('image', photoFile);
+
+    try {
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error.message || 'Image upload failed');
+        }
+
+        const data = await response.json();
+        if (data.success && data.data.url) {
+            return data.data.url;
+        } else {
+            throw new Error('Image upload failed, unexpected response from ImgBB');
+        }
+    } catch (error) {
+        console.error("ImgBB upload error:", error);
+        return null;
+    }
+};
+
 
   const onSubmit = async (values: z.infer<typeof issueSchema>) => {
     if (!user || !userProfile) {
@@ -155,6 +184,7 @@ export default function ReportForm() {
 
     try {
       // 1. Get Coordinates
+      toast({ title: 'Processing...', description: 'Looking up location coordinates.' });
       const locationCoords = await getCoordsFromAddress(values.location);
       if (!locationCoords) {
           toast({ title: 'Location Error', description: 'Could not find coordinates for the address. Please try a different address.', variant: 'destructive' });
@@ -162,10 +192,13 @@ export default function ReportForm() {
       }
 
       // 2. Upload Photo
+      toast({ title: 'Processing...', description: 'Uploading your photo.' });
       const photoFile = values.photo[0];
-      const storageRef = ref(storage, `issues/${user.uid}/${Date.now()}_${photoFile.name}`);
-      await uploadBytes(storageRef, photoFile);
-      const photoUrl = await getDownloadURL(storageRef);
+      const photoUrl = await uploadPhotoToImgBB(photoFile);
+      if (!photoUrl) {
+          toast({ title: 'Upload Failed', description: 'Could not upload the photo. Please try again.', variant: 'destructive' });
+          throw new Error("Photo upload failed");
+      }
       
       // 3. Prepare Firestore Document
       const newIssue = {
@@ -181,6 +214,7 @@ export default function ReportForm() {
       };
 
       // 4. Save to Firestore
+      toast({ title: 'Processing...', description: 'Saving your report to the database.' });
       const docRef = await addDoc(collection(db, 'issues'), newIssue);
       
       toast({ title: 'Success!', description: 'Your issue has been reported.' });
@@ -202,8 +236,8 @@ export default function ReportForm() {
     } catch (error) {
       console.error("Submission Failed:", error);
       // The specific error toast is shown in the function that throws it
-      // This is a general fallback.
-      if (error instanceof Error && error.message !== "Geocoding failed") {
+      // This is a general fallback for unexpected issues.
+      if (error instanceof Error && error.message !== "Geocoding failed" && error.message !== "Photo upload failed") {
           toast({ title: 'Submission Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
       }
     } finally {
@@ -284,15 +318,20 @@ export default function ReportForm() {
         <FormField
           control={form.control}
           name="photo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Photo</FormLabel>
-              <FormControl>
-                <Input type="file" accept="image/*" disabled={isSubmitting || !isReadyToSubmit} {...fileRef} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            // We are deconstructing the field object to remove the 'value' prop
+            // because file inputs in React should be uncontrolled components.
+            const { value, ...rest } = field;
+            return (
+              <FormItem>
+                <FormLabel>Photo</FormLabel>
+                <FormControl>
+                  <Input type="file" accept="image/*" disabled={isSubmitting || !isReadyToSubmit} {...rest} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         <Button type="submit" disabled={!isReadyToSubmit || isSubmitting} className="w-full">
