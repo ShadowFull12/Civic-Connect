@@ -278,14 +278,20 @@ export default function MapView({ apiKey }: MapViewProps) {
                                 </div>
                             </div>
                         </DialogTrigger>
-                        <DialogContent className="p-0 border-0 max-w-4xl h-full md:h-auto md:max-h-[90vh] bg-transparent">
-                           <DialogHeader>
-                               <DialogTitle className="sr-only">Issue Image: {selectedIssue.category}</DialogTitle>
-                               <DialogDescription className="sr-only">{selectedIssue.description}</DialogDescription>
-                           </DialogHeader>
-                           <div className="relative w-full h-full">
-                                <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-contain"/>
-                           </div>
+                         <DialogContent className="p-0 border-0 max-w-none w-auto h-auto bg-transparent grid place-items-center">
+                            <DialogHeader>
+                                <DialogTitle className="sr-only">Issue Image: {selectedIssue.category}</DialogTitle>
+                                <DialogDescription className="sr-only">{selectedIssue.description}</DialogDescription>
+                            </DialogHeader>
+                            <div className="relative w-[90vw] h-[90vh]">
+                                <Image 
+                                    src={selectedIssue.photoUrl} 
+                                    alt={selectedIssue.category} 
+                                    fill 
+                                    sizes="90vw"
+                                    className="object-contain"
+                                />
+                            </div>
                         </DialogContent>
                     </Dialog>
                     <div className="p-2.5">
