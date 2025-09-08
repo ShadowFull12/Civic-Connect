@@ -163,9 +163,9 @@ export default function MapView({ apiKey }: MapViewProps) {
             ref={mapRef}
             onMove={evt => {
                 setViewState(evt.viewState);
-                setZoom(evt.viewState.zoom);
+                if (evt.viewState.zoom !== zoom) setZoom(evt.viewState.zoom);
                 const newBounds = evt.target.getBounds().toArray().flat() as [number, number, number, number];
-                setBounds(newBounds);
+                if (JSON.stringify(newBounds) !== JSON.stringify(bounds)) setBounds(newBounds);
             }}
             onLoad={evt => {
                 const newBounds = evt.target.getBounds().toArray().flat() as [number, number, number, number];
@@ -249,7 +249,7 @@ export default function MapView({ apiKey }: MapViewProps) {
                 longitude={selectedIssue.location.lng}
                 latitude={selectedIssue.location.lat}
                 onClose={() => setSelectedIssue(null)}
-                closeOnClick={false}
+                closeOnClick={true}
                 anchor="left"
                 offset={20}
                 className="font-body"

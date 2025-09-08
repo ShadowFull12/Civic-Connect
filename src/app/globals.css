@@ -89,9 +89,8 @@
       box-shadow: none;
   }
   .maplibregl-popup-close-button {
-      color: hsl(var(--foreground));
-      background: hsl(var(--background) / 0.8);
-      backdrop-filter: blur(4px);
+      color: hsl(var(--card-foreground));
+      background-color: hsl(var(--card));
       border: 1px solid hsl(var(--border));
       border-radius: 9999px;
       width: 28px;
