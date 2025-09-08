@@ -275,7 +275,7 @@ export default function MapView({ apiKey }: MapViewProps) {
                     <Dialog>
                        <DialogTrigger asChild>
                            <div className="relative w-full h-28 cursor-pointer group">
-                                <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-cover" />
+                                <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill sizes="240px" className="object-cover" />
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Maximize className="h-8 w-8 text-white" />
                                 </div>
@@ -317,5 +317,3 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
-
-    
