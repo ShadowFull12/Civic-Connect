@@ -263,12 +263,12 @@ export default function MapView({ apiKey }: MapViewProps) {
                 latitude={selectedIssue.location.lat}
                 onClose={() => setSelectedIssue(null)}
                 closeOnClick={true}
-                anchor="left"
-                offset={20}
+                anchor="bottom"
+                offset={40}
                 className="font-body z-20"
                 >
                 <div 
-                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-left transition-transform duration-300 w-64"
+                  className="bg-card text-card-foreground rounded-lg overflow-hidden shadow-2xl border border-border origin-bottom transition-transform duration-300 w-64"
                   style={{ transform: `scale(${Math.max(0.5, Math.min(1, zoom / 12))})`}}
                 >
                     <Dialog>
@@ -280,8 +280,10 @@ export default function MapView({ apiKey }: MapViewProps) {
                                 </div>
                             </div>
                         </DialogTrigger>
-                        <DialogContent className="p-0 border-0 max-w-4xl">
-                            <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} width={1024} height={768} className="w-full h-auto object-contain rounded-lg"/>
+                        <DialogContent className="p-0 border-0 max-w-4xl h-full md:h-auto md:max-h-[90vh] bg-transparent">
+                           <div className="relative w-full h-full">
+                                <Image src={selectedIssue.photoUrl} alt={selectedIssue.category} fill className="object-contain"/>
+                           </div>
                         </DialogContent>
                     </Dialog>
                     <div className="p-3">
@@ -314,5 +316,3 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
-
-    
