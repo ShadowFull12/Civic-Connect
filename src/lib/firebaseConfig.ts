@@ -3,11 +3,10 @@
 // It's recommended to use environment variables to store this sensitive information.
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  projectId: "civic-connect-60lyv",
+  appId: "1:1045627731514:web:0250c1bce3c59ea899ff03",
+  storageBucket: "civic-connect-60lyv.appspot.com",
+  apiKey: "AIzaSyDc5Q1WEGhYZuu_1V_-4pJ1V-BU1wSaYWc",
+  authDomain: "civic-connect-60lyv.firebaseapp.com",
+  messagingSenderId: "1045627731514",
 };
