@@ -7,7 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
 import type { Issue } from '@/lib/types';
-import { Layers, AlertCircle, Loader2, Pin, Maximize } from 'lucide-react';
+import { Layers, AlertCircle, Loader2, Pin, Maximize, MapIcon } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format, formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
@@ -15,6 +15,8 @@ import useSupercluster from 'use-supercluster';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from './ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface MapViewProps {
   apiKey: string;
@@ -39,6 +41,14 @@ const getStatusColorClass = (status: Issue['status']) => {
   }
 };
 
+const mapStyles = {
+    'dataviz-dark': 'Dataviz Dark',
+    'streets-v2': 'Streets',
+    'satellite': 'Satellite',
+    'topo-v2': 'Topographic'
+};
+
+
 export default function MapView({ apiKey }: MapViewProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -50,6 +60,8 @@ export default function MapView({ apiKey }: MapViewProps) {
   const [zoom, setZoom] = useState(16);
   const mapRef = useRef<MapRef>(null);
   const isMobile = useIsMobile();
+  const [mapStyle, setMapStyle] = useState('dataviz-dark');
+
 
   const [viewState, setViewState] = useState({
     longitude: -74.006,
@@ -169,6 +181,23 @@ export default function MapView({ apiKey }: MapViewProps) {
                 {locationError}
             </div>
         )}
+        <div className="absolute top-2 right-12 z-10 w-48">
+            <Select value={mapStyle} onValueChange={setMapStyle}>
+                <SelectTrigger className="w-full bg-background/80 backdrop-blur-sm">
+                   <div className="flex items-center gap-2">
+                        <MapIcon className="h-4 w-4" />
+                        <SelectValue placeholder="Map Style" />
+                   </div>
+                </SelectTrigger>
+                <SelectContent>
+                    {Object.entries(mapStyles).map(([key, name]) => (
+                        <SelectItem key={key} value={key}>
+                            {name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
         <Map
             {...viewState}
             ref={mapRef}
@@ -183,7 +212,7 @@ export default function MapView({ apiKey }: MapViewProps) {
                 setBounds(newBounds);
             }}
             style={{ width: '100%', height: '100%' }}
-            mapStyle={`https://api.maptiler.com/maps/dataviz-dark/style.json?key=${apiKey}`}
+            mapStyle={`https://api.maptiler.com/maps/${mapStyle}/style.json?key=${apiKey}`}
             minZoom={3}
         >
             <NavigationControl position="top-right" />
@@ -279,9 +308,9 @@ export default function MapView({ apiKey }: MapViewProps) {
                             </div>
                         </DialogTrigger>
                          <DialogContent className="p-0 border-0 max-w-none w-auto h-auto bg-transparent grid place-items-center">
-                            <DialogHeader>
-                                <DialogTitle className="sr-only">Issue Image: {selectedIssue.category}</DialogTitle>
-                                <DialogDescription className="sr-only">{selectedIssue.description}</DialogDescription>
+                            <DialogHeader className="sr-only">
+                                <DialogTitle>Issue Image: {selectedIssue.category}</DialogTitle>
+                                <DialogDescription>{selectedIssue.description}</DialogDescription>
                             </DialogHeader>
                             <div className="relative w-[90vw] h-[90vh]">
                                 <Image 
@@ -324,5 +353,3 @@ export default function MapView({ apiKey }: MapViewProps) {
     </div>
   );
 }
-
-    
